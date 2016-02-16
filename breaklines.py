@@ -5,6 +5,8 @@ import os
 import sys
 import fnmatch
 
+# How many characters allowed in one line?
+breakpoint = 100
 
 # Get input: source directory of users guide.
 def getInput():
@@ -39,12 +41,18 @@ def readfile(texfile):
 def insertBreak(content):
   processed = []
   for line in content:
-    if (len(line) > 100):
-      # FAIL!!!
-      processed.extend(line[:100] + "\n")
-      processed.extend(line[102:])
+    numOfInsert = len(line)/breakpoint
+    countInsert = 0
+
+    if (numOfInsert >= 1):
+      while(countInsert <= numOfInsert):
+        newLine = line[breakpoint*countInsert-countInsert:breakpoint*(countInsert+1)-(countInsert+1)]
+        processed.extend(newLine)
+        processed.extend('\n')
+        countInsert = countInsert + 1
     else:
       processed.extend(line)
+    print(countInsert)
   return processed
 
 
