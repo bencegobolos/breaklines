@@ -39,6 +39,7 @@ def readfile(texfile):
 
 # Process lines: if "len(line) > 100" insert "\n" somehow.
 def insertBreak(content):
+  print("Processing...")
   processed = []
   for line in content:
     numOfInsert = len(line)/breakpoint
@@ -52,7 +53,6 @@ def insertBreak(content):
         countInsert = countInsert + 1
     else:
       processed.extend(line)
-    print(countInsert)
   return processed
 
 
@@ -68,9 +68,12 @@ def dump(content, file):
 def main():
   srcdir = getInput()
   files = find(srcdir)
-  content = readfile(files[33])
-  proc = insertBreak(content)
-  dump(proc, "out.txt")
+  i = 1
+  for file in files:
+    content = readfile(file)
+    proc = insertBreak(content)
+    dump(proc, str(i) + ".txt")
+    i = i + 1
 
 if __name__ == "__main__":
   main()
