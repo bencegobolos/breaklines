@@ -98,6 +98,13 @@ def checkbrackets(c):
     return 0
 
 
+# Filter out hint lines.
+def isHint(line):
+  if (line[0:5] = '\hint{'):
+    return 1
+  return 0
+
+
 # Check if we can insert \n at current character.
 def isInsertionPossible(c):
   if (c == ' ' and brackets == 0):
