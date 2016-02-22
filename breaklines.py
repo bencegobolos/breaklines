@@ -7,6 +7,7 @@ import fnmatch
 
 # How many characters allowed in one line?
 breakpoint = 100
+brackets = 0
 
 # Get input: source directory of users guide.
 def getInput():
@@ -37,23 +38,72 @@ def readfile(texfile):
   return content
 
 
-# Process lines: if "len(line) > 100" insert "\n" somehow.
-def insertBreak(content):
+# Process line (insert '\n') with logic like this
+# * must be inserted before the line 100th character
+# * insert it at the least distance from 100th char as possible
+# * insert it at the character ' ' (space)
+# * cannot be inserted before { } brackets.
+# * if examined char is '\n' then continue
+def insertNewLines(content):
   print("Processing...")
-  processed = []
-  for line in content:
-    numOfInsert = len(line)/breakpoint
-    countInsert = 0
 
-    if (numOfInsert >= 1):
-      while(countInsert <= numOfInsert):
-        newLine = line[breakpoint*countInsert-countInsert:breakpoint*(countInsert+1)-(countInsert+1)]
-        processed.extend(newLine)
+  # processed will contain the formatted tex file
+  formatted = []
+  for line in content:
+    newline = splitLine(line)
+    formatted.extend(newline)
+
+  return formatted
+
+def splitLine(line):
+  processed = []
+
+  llen = len(line)
+  if (llen >= breakpoint):
+    idx = 0
+    save = 0
+
+    while(save < breakpoint and idx < llen):
+      checkbrackets(line[idx])
+      if (isInsertionPossible(line[idx])):
+        save = idx
+      idx += 1
+
+      if (save >= breakpoint):
+        processed.extend(line[:save])
         processed.extend('\n')
-        countInsert = countInsert + 1
-    else:
-      processed.extend(line)
+        if (len(line[save+1:]) >= breakpoint):
+          processed.extend(splitLine(line[save+1:]))
+          return processed
+        else:
+          processed.extend(line[save+1:])
+          return processed
+
+    return line
+
+  else:
+    processed.extend(line)
+
   return processed
+
+
+# Check if character is a curly bracket.
+def checkbrackets(c):
+  global brackets
+  if (c == '{'):
+    brackets -= 1
+  elif (c == '}'):
+    brackets += 1
+  else:
+    return 0
+
+
+# Check if we can insert \n at current character.
+def isInsertionPossible(c):
+  if (c == ' ' and brackets == 0):
+    return 1
+  else:
+    return 0
 
 
 # DEBUG: output content(param 1) into file(param 2)
@@ -62,18 +112,19 @@ def dump(content, file):
   for line in content:
     f.write(line)
   f.close()
+  print("Formatted file: " + file)
 
 
 #### START PROGRAM ####
 def main():
   srcdir = getInput()
   files = find(srcdir)
-  i = 1
   for file in files:
     content = readfile(file)
-    proc = insertBreak(content)
-    dump(proc, str(i) + ".txt")
-    i = i + 1
+    newfile = insertNewLines(content)
+    dump(newfile, file)
+  print("Formatting done.")
+
 
 if __name__ == "__main__":
   main()
