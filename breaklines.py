@@ -57,6 +57,7 @@ def insertNewLines(content):
 
 def splitLine(line):
   processed = []
+  global brackets
 
   llen = len(line)
   if (llen >= breakpoint):
@@ -69,15 +70,19 @@ def splitLine(line):
         save = idx
       idx += 1
 
+      if (brackets > 0):
+        print("Hint close: " + str(idx))
+        brackets -= 1
+
+      if (line[idx-5:idx] == '\hint'):
+        print("Hint open: " + str(idx))
+        brackets += 1
+
       if (save >= breakpoint):
         processed.extend(line[:save])
         processed.extend('\n')
-        if (len(line[save+1:]) >= breakpoint):
-          processed.extend(splitLine(line[save+1:]))
-          return processed
-        else:
-          processed.extend(line[save+1:])
-          return processed
+        processed.extend(splitLine(line[save+1:]))
+        return processed
 
     return line
 
@@ -90,19 +95,13 @@ def splitLine(line):
 # Check if character is a curly bracket.
 def checkbrackets(c):
   global brackets
+
   if (c == '{'):
     brackets -= 1
   elif (c == '}'):
     brackets += 1
   else:
     return 0
-
-
-# Filter out hint lines.
-def isHint(line):
-  if (line[0:5] = '\hint{'):
-    return 1
-  return 0
 
 
 # Check if we can insert \n at current character.
@@ -126,11 +125,16 @@ def dump(content, file):
 def main():
   srcdir = getInput()
   files = find(srcdir)
+#DEBUG
+#  content = readfile(files[14])
+#  newfile = insertNewLines(content)
+#  dump(newfile, 'out.txt')
+#DEBUG
   for file in files:
     content = readfile(file)
     newfile = insertNewLines(content)
-    dump(newfile, file)
-  print("Formatting done.")
+    dump(newfile, file)  
+  print("PROGRAM ENDS.")
 
 
 if __name__ == "__main__":
