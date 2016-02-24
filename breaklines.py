@@ -57,6 +57,7 @@ def insertNewLines(content):
 
 def splitLine(line):
   processed = []
+  isComment = 0
   global brackets
 
   llen = len(line)
@@ -78,9 +79,14 @@ def splitLine(line):
         print("Hint open: " + str(idx))
         brackets += 1
 
+      if (line[idx] == '%' and line[idx-1] == '\'):
+        isComment = 1
+
       if (save >= breakpoint):
         processed.extend(line[:save])
         processed.extend('\n')
+        if (isComment):
+          processed.extend('%')
         processed.extend(splitLine(line[save+1:]))
         return processed
 
