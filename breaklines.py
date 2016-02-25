@@ -64,7 +64,7 @@ def splitLine(line):
     save = 0
 
     # Search for insertion points
-    while(idx < breakpoint):
+    while(idx < llen):
       checkbrackets(line[idx])
 
       if (isInsertionPossible(line[idx])):
@@ -74,7 +74,10 @@ def splitLine(line):
       if (line[idx-5:idx] == '\hint'):
         brackets += 1
 
-      # Found a \hint closing '}' bracket.
+      if (line[idx-5:idx] == '\samp'):
+        brackets += 1
+
+      # Found a \hint or \samp closing '}' bracket.
       if (brackets > 0):
         brackets -= 1
 
@@ -95,7 +98,7 @@ def splitLine(line):
           processed.extend(splitLine(line[save+1:]))
         return processed
 
-    # If can't insert anything
+    # If can't insert \n before 100th char
     brackets = 0
     return line
 
