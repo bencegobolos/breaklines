@@ -38,12 +38,7 @@ def readfile(texfile):
   return content
 
 
-# Process line (insert '\n') with logic like this
-# * must be inserted before the line 100th character
-# * insert it at the least distance from 100th char as possible
-# * insert it at the character ' ' (space)
-# * cannot be inserted before { } brackets.
-# * if examined char is '\n' then continue
+# Build new file.
 def insertNewLines(content):
   print("Processing...")
 
@@ -55,41 +50,53 @@ def insertNewLines(content):
 
   return formatted
 
+
+# Insert newlines into long lines.
 def splitLine(line):
   processed = []
   isComment = 0
   global brackets
 
+  # Is line longer then breakpoint?
   llen = len(line)
   if (llen >= breakpoint):
     idx = 0
     save = 0
 
-    while(save < breakpoint and idx < llen):
+    # Search for insertion points
+    while(idx < breakpoint):
       checkbrackets(line[idx])
+
       if (isInsertionPossible(line[idx])):
         save = idx
-      idx += 1
 
-      if (brackets > 0):
-        print("Hint close: " + str(idx))
-        brackets -= 1
-
+      # if { bracket is \hint{, do not mind it.
       if (line[idx-5:idx] == '\hint'):
-        print("Hint open: " + str(idx))
         brackets += 1
 
-      if (line[idx] == '%' and line[idx-1] == '\'):
+      # Found a \hint closing '}' bracket.
+      if (brackets > 0):
+        brackets -= 1
+
+      # If line is comment, break it and insert %.
+      if (line[idx] == '%' and line[idx-1] != '\\'):
         isComment = 1
 
-      if (save >= breakpoint):
+      idx += 1
+
+      # Found an insertion point.
+      if (save > 0 and idx >= breakpoint):
+        brackets = 0
         processed.extend(line[:save])
         processed.extend('\n')
         if (isComment):
-          processed.extend('%')
-        processed.extend(splitLine(line[save+1:]))
+          processed.extend(splitLine('%' + line[save+1:]))
+        else:
+          processed.extend(splitLine(line[save+1:]))
         return processed
 
+    # If can't insert anything
+    brackets = 0
     return line
 
   else:
