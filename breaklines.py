@@ -8,6 +8,7 @@ import fnmatch
 # How many characters allowed in one line?
 breakpoint = 100
 brackets = 0
+cmd = 0
 
 # Get input: source directory of users guide.
 def getInput():
@@ -56,6 +57,20 @@ def splitLine(line):
   processed = []
   isComment = 0
   global brackets
+  global cmd
+
+  # Do not break line if represents a (partial) code.
+  if (re.match("(.*)begin{cmd}(.*)", line)):
+    cmd -= 1
+
+  if (re.match("(.*)\\end{cmd}(.*)", line)):
+    cmd += 1
+
+  if (re.match("(.*)begin{code}(.*)", line)):
+    cmd -= 1
+
+  if (re.match("(.*)\\end{code}(.*)", line)):
+    cmd += 1
 
   # Is line longer then breakpoint?
   llen = len(line)
@@ -67,7 +82,7 @@ def splitLine(line):
     while(idx < llen):
       checkbrackets(line[idx])
 
-      if (isInsertionPossible(line[idx])):
+      if (isInsertionPossible(line[idx]) and cmd == 0):
         save = idx
 
       # if { bracket is \hint{, do not mind it.
@@ -141,11 +156,6 @@ def dump(content, file):
 def main():
   srcdir = getInput()
   files = find(srcdir)
-#DEBUG
-#  content = readfile(files[14])
-#  newfile = insertNewLines(content)
-#  dump(newfile, 'out.txt')
-#DEBUG
   for file in files:
     content = readfile(file)
     newfile = insertNewLines(content)
