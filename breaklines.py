@@ -1,9 +1,7 @@
 #!/usr/bin/python
 
 import re
-import os
 import sys
-import fnmatch
 
 # How many characters allowed in one line?
 maxlen = 100
@@ -48,14 +46,16 @@ def format_file(content):
 def split_line(line):
   llen = len(line)
 
-  # Long line
+  # Short line, ignore it.
   if llen <= maxlen:
     return line
 
+  # Long line, process it.
   # Initializing variables.
   processed = []
   idx = save = brackets = 0
 
+  num_of_indents = check_indentation(line)
   # Search for insertion points
   while idx < llen:
     brackets += check_brackets(line[idx])
@@ -67,16 +67,19 @@ def split_line(line):
     idx += 1
 
     # Found an insertion point (before or after maxlen)
-    if save > 0 and idx >= maxlen:
+    if save > 0 and save > num_of_indents  and idx >= maxlen:
       processed.extend(line[:save])
       processed.extend('\n')
+      # Keep indentation
+      indentation = ' ' * num_of_indents
       if is_comment(line, idx):
-        processed.extend(split_line('%' + line[save+1:]))
+        processed.extend(split_line('%' + indentation + line[save+1:]))
       else:
-        processed.extend(split_line(line[save+1:]))
+        print(line)
+        processed.extend(split_line(indentation + line[save+1:]))
       return processed
 
-  # No insertion found
+  # No insertion point found
   return line
 
 
@@ -111,11 +114,19 @@ def check_exception(line, idx, brackets):
   if line[idx-5:idx] == '\samp':
     return 1
  
- # Found a \hint or \samp closing '}' bracket.
+  # Found a \hint or \samp closing '}' bracket.
   if brackets > 0:
     return -1
-
   return 0
+
+
+# Check indentation of a line
+def check_indentation(line):
+  idx = 0
+  while (line[idx] == ' ' and idx < 20):
+    idx += 1
+
+  return idx
 
 
 # If line is comment, break it and insert %.

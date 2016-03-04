@@ -39,6 +39,7 @@ def main():
   srcdir = get_input()
   files = find(srcdir)
   for file in files:
+    print('Processing file: ' + file)
     content = breaklines.read_file(file)
     newfile = breaklines.format_file(content)
     dump(newfile, file)
