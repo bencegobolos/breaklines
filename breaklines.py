@@ -7,8 +7,6 @@ import fnmatch
 
 # How many characters allowed in one line?
 breakpoint = 100
-brackets = 0
-cmd = 0
 
 # Get input: source directory of users guide.
 def getInput():
@@ -45,66 +43,42 @@ def insertNewLines(content):
 
   # processed will contain the formatted tex file
   formatted = []
+  cmd = 0
+
   for line in content:
-    newline = splitLine(line)
-    formatted.extend(newline)
+    cmd += checkcode(line)
+    if (cmd == 0):
+      newline = splitLine(line)
+      formatted.extend(newline)
+    else:
+      formatted.extend(line)
 
   return formatted
 
 
 # Insert newlines into long lines.
 def splitLine(line):
-  processed = []
-  isComment = 0
-  global brackets
-  global cmd
-
-  # Do not break line if represents a (partial) code.
-  if (re.match("(.*)begin{cmd}(.*)", line)):
-    cmd -= 1
-
-  if (re.match("(.*)\\end{cmd}(.*)", line)):
-    cmd += 1
-
-  if (re.match("(.*)begin{code}(.*)", line)):
-    cmd -= 1
-
-  if (re.match("(.*)\\end{code}(.*)", line)):
-    cmd += 1
-
-  # Is line longer then breakpoint?
   llen = len(line)
+
+  # Long line
   if (llen >= breakpoint):
-    idx = 0
-    save = 0
+    # Initializing variables.
+    processed = []
+    idx = save = brackets = isComment = 0
 
     # Search for insertion points
     while(idx < llen):
-      checkbrackets(line[idx])
+      brackets += checkbrackets(line[idx])
+      brackets += checkexception(line, idx, brackets)
+      isComment = checkcomment(line, idx)
 
-      if (isInsertionPossible(line[idx]) and cmd == 0):
+      if (isInsertionPossible(line[idx], brackets)):
         save = idx
-
-      # if { bracket is \hint{, do not mind it.
-      if (line[idx-5:idx] == '\hint'):
-        brackets += 1
-
-      if (line[idx-5:idx] == '\samp'):
-        brackets += 1
-
-      # Found a \hint or \samp closing '}' bracket.
-      if (brackets > 0):
-        brackets -= 1
-
-      # If line is comment, break it and insert %.
-      if (line[idx] == '%' and line[idx-1] != '\\'):
-        isComment = 1
 
       idx += 1
 
-      # Found an insertion point.
+      # Found an insertion point (before or after breakpoint)
       if (save > 0 and idx >= breakpoint):
-        brackets = 0
         processed.extend(line[:save])
         processed.extend('\n')
         if (isComment):
@@ -113,30 +87,65 @@ def splitLine(line):
           processed.extend(splitLine(line[save+1:]))
         return processed
 
-    # If can't insert \n before 100th char
-    brackets = 0
+    # No insertion point found
     return line
 
+  # Short line
   else:
-    processed.extend(line)
-
-  return processed
+    return line
 
 
 # Check if character is a curly bracket.
 def checkbrackets(c):
-  global brackets
-
   if (c == '{'):
-    brackets -= 1
+    return -1
   elif (c == '}'):
-    brackets += 1
+    return 1
+  else:
+    return 0
+
+
+# Do not break line if represents a (partial) code.
+def checkcode(line):
+  if (re.match("(.*)begin{cmd}(.*)", line)):
+    return -1
+
+  if (re.match("(.*)\\end{cmd}(.*)", line)):
+    return 1
+
+  if (re.match("(.*)begin{code}(.*)", line)):
+    return -1
+
+  if (re.match("(.*)\\end{code}(.*)", line)):
+    return 1
+
+  return 0
+
+
+# if { bracket is \hint{, do not mind it.
+def checkexception(line, idx, brackets):
+  if (line[idx-5:idx] == '\hint'):
+    return 1
+  if (line[idx-5:idx] == '\samp'):
+    return 1
+ 
+ # Found a \hint or \samp closing '}' bracket.
+  if (brackets > 0):
+    return -1
+
+  return 0
+
+
+# If line is comment, break it and insert %.
+def checkcomment(line, idx):
+  if (line[idx] == '%' and line[idx-1] != '\\'):
+    return 1
   else:
     return 0
 
 
 # Check if we can insert \n at current character.
-def isInsertionPossible(c):
+def isInsertionPossible(c, brackets):
   if (c == ' ' and brackets == 0):
     return 1
   else:
