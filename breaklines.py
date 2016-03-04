@@ -9,7 +9,7 @@ import fnmatch
 breakpoint = 100
 
 # Get input: source directory of users guide.
-def getInput():
+def get_input():
   if (len(sys.argv) < 2):
     print("ERROR: One argument reqired: srcdir of users guide.")
     sys.exit(0)
@@ -29,7 +29,7 @@ def find(srcdir):
 
 
 # Read .tex file.
-def readfile(texfile):
+def read_file(texfile):
   print("Reading file: " + texfile)
   with open(texfile) as f:
     content = f.readlines()
@@ -38,17 +38,18 @@ def readfile(texfile):
 
 
 # Build new file.
-def insertNewLines(content):
+def format_file(content):
   print("Processing...")
 
-  # processed will contain the formatted tex file
+  # Var formatted will contain the formatted tex file.
   formatted = []
+  # Do not insert newline char in code!
   cmd = 0
 
   for line in content:
-    cmd += checkcode(line)
+    cmd += check_code(line)
     if (cmd == 0):
-      newline = splitLine(line)
+      newline = split_line(line)
       formatted.extend(newline)
     else:
       formatted.extend(line)
@@ -57,22 +58,22 @@ def insertNewLines(content):
 
 
 # Insert newlines into long lines.
-def splitLine(line):
+def split_line(line):
   llen = len(line)
 
   # Long line
   if (llen >= breakpoint):
     # Initializing variables.
     processed = []
-    idx = save = brackets = isComment = 0
+    idx = save = brackets = is_comment = 0
 
     # Search for insertion points
     while(idx < llen):
-      brackets += checkbrackets(line[idx])
-      brackets += checkexception(line, idx, brackets)
-      isComment = checkcomment(line, idx)
+      brackets += check_brackets(line[idx])
+      brackets += check_exception(line, idx, brackets)
+      is_comment = check_comment(line, idx)
 
-      if (isInsertionPossible(line[idx], brackets)):
+      if (is_insertion_possible(line[idx], brackets)):
         save = idx
 
       idx += 1
@@ -81,22 +82,18 @@ def splitLine(line):
       if (save > 0 and idx >= breakpoint):
         processed.extend(line[:save])
         processed.extend('\n')
-        if (isComment):
-          processed.extend(splitLine('%' + line[save+1:]))
+        if (is_comment):
+          processed.extend(split_line('%' + line[save+1:]))
         else:
-          processed.extend(splitLine(line[save+1:]))
+          processed.extend(split_line(line[save+1:]))
         return processed
 
-    # No insertion point found
-    return line
-
-  # Short line
-  else:
-    return line
+  # Short line or no insertion found
+  return line
 
 
 # Check if character is a curly bracket.
-def checkbrackets(c):
+def check_brackets(c):
   if (c == '{'):
     return -1
   elif (c == '}'):
@@ -106,16 +103,13 @@ def checkbrackets(c):
 
 
 # Do not break line if represents a (partial) code.
-def checkcode(line):
+def check_code(line):
   if (re.match("(.*)begin{cmd}(.*)", line)):
     return -1
-
   if (re.match("(.*)\\end{cmd}(.*)", line)):
     return 1
-
   if (re.match("(.*)begin{code}(.*)", line)):
     return -1
-
   if (re.match("(.*)\\end{code}(.*)", line)):
     return 1
 
@@ -123,7 +117,7 @@ def checkcode(line):
 
 
 # if { bracket is \hint{, do not mind it.
-def checkexception(line, idx, brackets):
+def check_exception(line, idx, brackets):
   if (line[idx-5:idx] == '\hint'):
     return 1
   if (line[idx-5:idx] == '\samp'):
@@ -137,7 +131,7 @@ def checkexception(line, idx, brackets):
 
 
 # If line is comment, break it and insert %.
-def checkcomment(line, idx):
+def check_comment(line, idx):
   if (line[idx] == '%' and line[idx-1] != '\\'):
     return 1
   else:
@@ -145,7 +139,7 @@ def checkcomment(line, idx):
 
 
 # Check if we can insert \n at current character.
-def isInsertionPossible(c, brackets):
+def is_insertion_possible(c, brackets):
   if (c == ' ' and brackets == 0):
     return 1
   else:
@@ -163,11 +157,11 @@ def dump(content, file):
 
 #### START PROGRAM ####
 def main():
-  srcdir = getInput()
+  srcdir = get_input()
   files = find(srcdir)
   for file in files:
-    content = readfile(file)
-    newfile = insertNewLines(content)
+    content = read_file(file)
+    newfile = format_file(content)
     dump(newfile, file)  
   print("PROGRAM ENDS.")
 
