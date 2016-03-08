@@ -4,7 +4,7 @@ import re
 import sys
 
 # How many characters allowed in one line?
-maxlen = 100
+maxlen = 99
 
 # Get input: source directory of users guide.
 def get_input():
@@ -44,43 +44,52 @@ def format_file(content):
 
 # Insert newlines into long lines.
 def split_line(line):
-  llen = len(line)
+  llen = remain_len = len(line)
 
   # Short line, ignore it.
   if llen <= maxlen:
     return line
 
-  # Long line, process it.
-  # Initializing variables.
+  # Long line
   processed = []
-  idx = save = brackets = 0
-
+  save = 0
   num_of_indents = check_indentation(line)
+  indentation = ' ' * num_of_indents
+  comment = is_comment(line)
+
   # Search for insertion points
-  while idx < llen:
-    brackets += check_brackets(line[idx])
-    brackets += check_exception(line, idx, brackets)
+  while remain_len > maxlen:
+    idx = tmp_save = brackets = 0
 
-    if (is_insertion_possible(line[idx], brackets)):
-      save = idx
+    while idx < remain_len:
+      brackets += check_brackets(line[save + idx])
+      brackets += check_exception(line, idx, brackets)
 
-    idx += 1
+      if is_insertion_possible(line[save + idx], brackets):
+        tmp_save = save + idx
 
-    # Found an insertion point (before or after maxlen)
-    if save > 0 and save > num_of_indents  and idx >= maxlen:
-      processed.extend(line[:save])
-      processed.extend('\n')
-      # Keep indentation
-      indentation = ' ' * num_of_indents
-      if is_comment(line, idx):
-        processed.extend(split_line('%' + indentation + line[save+1:]))
-      else:
-        print(line)
-        processed.extend(split_line(indentation + line[save+1:]))
-      return processed
+      if tmp_save > num_of_indents and idx >= maxlen:
+        if save != 0:
+          processed.extend(indentation)
+        processed.extend(line[save:tmp_save])
+        processed.extend('\n')
+        if 0 <= comment <= save + tmp_save:
+          processed.extend('%')
+        save = tmp_save + 1
+        remain_len = len(line[save:])
+        break
+      idx += 1
+    if tmp_save <= num_of_indents:
+      if save != 0:
+        processed.extend(indentation)
+      processed.extend(line[save:tmp_save])
+      break
+  # Remaining
+  if save != 0:
+    processed.extend(indentation)
+  processed.extend(line[save:])
 
-  # No insertion point found
-  return line
+  return processed
 
 
 # Check if character is a curly bracket.
@@ -121,17 +130,29 @@ def check_exception(line, idx, brackets):
 
 
 # Check indentation of a line
+# Returns a number: number of spaces(' ').
 def check_indentation(line):
   idx = 0
-  while (line[idx] == ' ' and idx < 20):
+  while (line[idx] == ' '):
     idx += 1
 
   return idx
 
 
-# If line is comment, break it and insert %.
-def is_comment(line, idx):
-  return line[idx] == '%' and line[idx-1] != '\\'
+# Search for comment in line.
+# Returns an idx, where line becomes being a comment.
+# Returns -1 if line is not comment.
+def is_comment(line):
+  res = -1
+  idx = 0
+  llen = len(line)
+  while idx < llen:
+    if line[idx] == '%' and line[idx-1] != '\\':
+      res = idx
+      break
+    idx += 1
+
+  return res
 
 # Check if we can insert \n at current character.
 def is_insertion_possible(c, brackets):
