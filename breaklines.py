@@ -3,6 +3,11 @@
 import re
 import argparse
 
+class prefix(object):
+    item = '***\t'
+    note = '[!]\t'
+
+
 # Get input: source directory of users guide.
 def get_input():
     ap = argparse.ArgumentParser()
@@ -31,11 +36,11 @@ def long_lines(content):
         llen = len(line)
         if llen > maxlen:
             long_found = True
-            print('***\tLONG LINE on line ' + str(line_num))
-        line_num += 1
+            print(prefix.item + 'LONG LINE on line ' + str(line_num))
+        line_num += 1.
 
     if not long_found:
-        print('There is no long lines in your file.')
+        print(prefix.note + 'There is no long lines in your file.')
 
 # Build new file.
 def format_file(content):
@@ -69,12 +74,15 @@ def split_line(line):
     # Initializing variables.
     processed = []
     idx = save = brackets = 0
+    comment = False
 
     num_of_indents = check_indentation(line)
     # Search for insertion points
     while idx < llen:
         brackets += check_brackets(line[idx])
         brackets += check_exception(line, idx, brackets)
+        if is_comment(line, idx):
+            comment = True
 
         if (is_insertion_possible(line[idx], brackets)):
             save = idx
@@ -87,7 +95,7 @@ def split_line(line):
             processed.extend('\n')
             # Keep indentation
             indentation = ' ' * num_of_indents
-            if is_comment(line, idx):
+            if comment:
                 processed.extend(split_line('%' + indentation + line[save+1:]))
             else:
                 processed.extend(split_line(indentation + line[save+1:]))
