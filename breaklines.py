@@ -1,51 +1,34 @@
 #!/usr/bin/python
 
 import re
-import argparse
+import sys
+import fnmatch
+import os
 
-class prefix(object):
-    item = '***\t'
-    note = '[!]\t'
-
-
-# Get input: source directory of users guide.
-def get_input():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('-d', '--dryrun', help='check if file contains long lines',
-                    action='store_true')
-    ap.add_argument('-m', '--maxlen', help='the maximum length of a line '
-                                           '(100 on default)',
-                    type=int, default=100)
-    ap.add_argument('texfile', help='the .tex file you want to check',
-                    type=file)
-
-    return ap.parse_args()
+# Maximum length of a line
+maxlen = int(sys.argv[2])
 
 
-# Read .tex file.
-def read_file(texfile):
-    content = texfile.readlines()
+def read_file(file_path):
+    with open(file_path) as f:
+        content = f.readlines()
     return content
 
-def long_lines(content):
-    maxlen = get_input().maxlen
-    line_num = 1
-    long_found = False
 
-    for line in content:
-        llen = len(line)
-        if llen > maxlen:
-            long_found = True
-            print(prefix.item + 'LONG LINE on line ' + str(line_num))
-        line_num += 1.
+# Find .tex files in root folder.
+def find(srcdir):
+    texfiles = []
+    for root, directories, files in os.walk(srcdir):
+        for file in fnmatch.filter(files, '*.tex'):
+            texfiles.append(os.path.join(root, file))
 
-    if not long_found:
-        print(prefix.note + 'There is no long lines in your file.')
+    return texfiles
+
 
 # Build new file.
 def format_file(content):
 
-    # Var formatted will contain the formatted tex file.
+    # formatted will contain the formatted tex file.
     formatted = []
     # Do not insert newline char in code!
     cmd = 0
@@ -63,7 +46,7 @@ def format_file(content):
 
 # Insert newlines into long lines.
 def split_line(line):
-    maxlen = get_input().maxlen
+    global maxlen
     llen = len(line)
 
     # Short line, ignore it.
@@ -129,13 +112,13 @@ def check_code(line):
     return 0
 
 
-# if { bracket is \hint{, do not mind it.
+# If { bracket is \hint{, do not mind it.
 def check_exception(line, idx, brackets):
     if line[idx-5:idx] == '\hint':
         return 1
     if line[idx-5:idx] == '\samp':
         return 1
- 
+
     # Found a \hint or \samp closing '}' bracket.
     if brackets > 0:
         return -1
@@ -145,7 +128,7 @@ def check_exception(line, idx, brackets):
 # Check indentation of a line
 def check_indentation(line):
     idx = 0
-    while (line[idx] == ' ' and idx < 20):
+    while (line[idx] == ' '):
         idx += 1
 
     return idx
@@ -162,23 +145,40 @@ def is_insertion_possible(c, brackets):
 
 
 # DEBUG: output content(param 1) into file(param 2)
-def dump(content):
-    print(''.join(content))
+def dump(content, file):
+    f = open(file, 'w')
+    for line in content:
+        f.write(line)
+    f.close()
 
 
 def main():
-    args = get_input()
-    content = read_file(args.texfile)
-    if args.dryrun:
-        msg = 'Searching for long lines in file: ' + str(args.texfile.name) + '\n'
-        print('#' * len(msg))
-        print(msg)
-        long_lines(content)
-        print('')
-    else:
-        newfile = format_file(content)
-        dump(newfile)
+    file_path = sys.argv[1]
 
+    if len(sys.argv) > 3:
+        if sys.argv[3] == 'dir':
+            print('WARNING: This command will overwrite every .tex file in your directory')
+            user_input = raw_input('Continue? [yes/NO]: ')
+            execute = False
+            if str(user_input) == 'yes':
+                execute = True
+            if not execute:
+                print('Aborted.')
+                sys.exit(0)
+
+            srcdir = sys.argv[1]
+            files = find(srcdir)
+            for file in files:
+                print('Processing file: ' + file)
+                content = read_file(file)
+                newfile = format_file(content)
+                dump(newfile, file)
+                print('Formatted file: ' + file)
+            print("PROGRAM ENDS.")
+    else:
+        content = read_file(file_path)
+        newfile = format_file(content)
+        print(''.join(newfile))
 
 if __name__ == "__main__":
     main()
