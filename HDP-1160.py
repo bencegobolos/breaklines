@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import argparse
+import fnmatch
 
 # Get input: source directory of users guide.
 def get_input():
@@ -37,6 +38,43 @@ def checker(content, maxlen):
         print('[!]\t' + 'There is no long lines in your file.')
 
 
+# Find .tex files in folder srcdir.
+# Returns:
+# * texfiles: list, contains the relative paths to .tex files.
+def find_texfiles(srcdir):
+    texfiles = []
+
+    for root, directories, files in os.walk(srcdir):
+        for file in fnmatch.filter(files, '*.tex'):
+            texfiles.append(os.path.join(root, file))
+
+    return texfiles
+
+
+# Output content(param 1) into file(param 2)
+def dump(content, file):
+    f = open(file, 'w')
+    for line in content:
+        f.write(line)
+    f.close()
+
+
+# If first input is a directory
+# ask user to confirm to overwrite every .tex file.
+# Returns:
+# * 'True', if user_input is 'yes'
+# * 'False' otherwise.
+def confirm_srcdir():
+    execute = False
+
+    print('WARNING: This command will overwrite every .tex file in your directory')
+    user_input = str(raw_input('Continue? [yes/NO]: '))
+    if user_input == 'yes':
+        execute = True
+
+    return execute
+
+
 def main():
     args = get_input()
 
@@ -48,16 +86,24 @@ def main():
     script_path = os.path.dirname(os.path.abspath(__file__))
     command = ['python']
     command.append(os.path.join(script_path, 'breaklines.py'))
+    command.append(str(args.maxlen))
 
     if args.srcdir:
-        command.append(str(args.srcdir))
-        command.append(str(args.maxlen))
-        subprocess.call(command)
+        execute = confirm_srcdir()
+        if not execute:
+            print('Script aborted.')
+            sys.exit(-1)
+
+        texfiles = find_texfiles(args.srcdir)
+        for file in texfiles:
+            command.append(file)
+            content = subprocess.check_output(command)
+            command.pop()
+            dump(content, file)
         sys.exit(0)
 
     if args.file:
         command.append(str(args.file.name))
-        command.append(str(args.maxlen))
         subprocess.call(command)
         sys.exit(0)
 

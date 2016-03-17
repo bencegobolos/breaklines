@@ -2,15 +2,14 @@
 
 import re
 import sys
-import fnmatch
-import os
+
 
 # Global variables: command line arguments.
-path = sys.argv[1]
-maxlen = int(sys.argv[2])
+maxlen = int(sys.argv[1])
+path = sys.argv[2]
 
 
-# Read file from file's relative path.
+# Read file from file's path.
 def read_file(path):
     with open(path) as f:
         content = f.readlines()
@@ -18,24 +17,11 @@ def read_file(path):
     return content
 
 
-# Find .tex files in folder srcdir.
-# Returns:
-# * texfiles: list, contains the relative paths to .tex files.
-def find_texfiles(srcdir):
-    texfiles = []
-
-    for root, directories, files in os.walk(srcdir):
-        for file in fnmatch.filter(files, '*.tex'):
-            texfiles.append(os.path.join(root, file))
-
-    return texfiles
-
-
 # Build new file.
 # Returns with a list, that represents the formatted file.
 # Variables:
 # * formatted: list, contains the formatted file.
-# * cmd: int, stores depth of codeblocks.
+# * cmd: int, stores depth of code blocks.
 def format_file(content):
     # formatted will contain the formatted tex file.
     formatted = []
@@ -110,6 +96,7 @@ def split_line(line):
     # No insertion point found, return with the line untouched.
     return line
 
+
 # Check if character is a curly bracket.
 # Returns:
 # * -1 if entering bracket
@@ -182,46 +169,10 @@ def is_insertion_possible(c, brackets):
     return c == ' ' and brackets == 0
 
 
-# Output content(param 1) into file(param 2)
-def dump(content, file):
-    f = open(file, 'w')
-    for line in content:
-        f.write(line)
-    f.close()
-
-
-# If first input is a directory
-# ask user to confirm to overwrite every .tex file.
-# Returns:
-# * 'True', if user_input is 'yes'
-# * 'False' otherwise.
-def confirm_srcdir():
-    execute = False
-
-    print('WARNING: This command will overwrite every .tex file in your directory')
-    user_input = str(raw_input('Continue? [yes/NO]: '))
-    if user_input == 'yes':
-        execute = True
-
-    return execute
-
-
 def main():
-    if os.path.isdir(path):
-        execute = confirm_srcdir()
-        if not execute:
-            print('Script aborted.')
-            sys.exit(-1)
-
-        texfiles = find_texfiles(path)
-        for file in texfiles:
-            content = read_file(file)
-            newfile = format_file(content)
-            dump(newfile, file)
-    else:
-        content = read_file(path)
-        newfile = format_file(content)
-        print(''.join(newfile))
+    content = read_file(path)
+    newfile = format_file(content)
+    print(''.join(newfile))
 
 
 if __name__ == "__main__":
