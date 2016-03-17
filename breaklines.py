@@ -5,19 +5,25 @@ import sys
 import fnmatch
 import os
 
-# Maximum length of a line
+# Global variables: command line arguments.
+path = sys.argv[1]
 maxlen = int(sys.argv[2])
 
 
-def read_file(file_path):
-    with open(file_path) as f:
+# Read file from file's relative path.
+def read_file(path):
+    with open(path) as f:
         content = f.readlines()
+
     return content
 
 
-# Find .tex files in root folder.
-def find(srcdir):
+# Find .tex files in folder srcdir.
+# Returns:
+# * texfiles: list, contains the relative paths to .tex files.
+def find_texfiles(srcdir):
     texfiles = []
+
     for root, directories, files in os.walk(srcdir):
         for file in fnmatch.filter(files, '*.tex'):
             texfiles.append(os.path.join(root, file))
@@ -26,8 +32,11 @@ def find(srcdir):
 
 
 # Build new file.
+# Returns with a list, that represents the formatted file.
+# Variables:
+# * formatted: list, contains the formatted file.
+# * cmd: int, stores depth of codeblocks.
 def format_file(content):
-
     # formatted will contain the formatted tex file.
     formatted = []
     # Do not insert newline char in code!
@@ -44,12 +53,22 @@ def format_file(content):
     return formatted
 
 
-# Insert newlines into long lines.
+# Param: line from file.
+# Returns with the formatted line (inserted newline char).
+# Variables:
+# * processed: list, contains the formatted line
+# * llen: int, line length
+# * idx: int, actual char that is being examined
+# * save: int, index of the character where newline char can be inserted
+# * brackets: int, stores depth of curly brackets
+# * comment: bool, 'True' if a line is a comment
+# * num_of_indents: int, stores number of spaces at the beginning of the line
+# * indentation: string, stores num_of_indents many spaces.
 def split_line(line):
     global maxlen
     llen = len(line)
 
-    # Short line, ignore it.
+    # Early return: short line (less than maxlen)
     if llen <= maxlen:
         return line
 
@@ -59,36 +78,43 @@ def split_line(line):
     idx = save = brackets = 0
     comment = False
 
+    # Check if line is indented.
     num_of_indents = check_indentation(line)
+
     # Search for insertion points
     while idx < llen:
         brackets += check_brackets(line[idx])
         brackets += check_exception(line, idx, brackets)
+
         if is_comment(line, idx):
             comment = True
-
-        if (is_insertion_possible(line[idx], brackets)):
+        if is_insertion_possible(line[idx], brackets):
             save = idx
 
         idx += 1
 
-        # Found an insertion point (before or after maxlen)
-        if save > 0 and save > num_of_indents and idx >= maxlen:
+        # Found an insertion point after indentation and
+        # as close to maxlen as possible.
+        if save > num_of_indents and idx >= maxlen:
             processed.extend(line[:save])
             processed.extend('\n')
-            # Keep indentation
+            # Keep the next line indented.
             indentation = ' ' * num_of_indents
+            # Decide if next line should be commented out from file.
             if comment:
                 processed.extend(split_line('%' + indentation + line[save+1:]))
             else:
                 processed.extend(split_line(indentation + line[save+1:]))
             return processed
 
-    # No insertion point found
+    # No insertion point found, return with the line untouched.
     return line
 
-
 # Check if character is a curly bracket.
+# Returns:
+# * -1 if entering bracket
+# * 1 if closing bracket
+# * 0 otherwise.
 def check_brackets(c):
     if c == '{':
         return -1
@@ -98,7 +124,11 @@ def check_brackets(c):
         return 0
 
 
-# Do not break line if represents a (partial) code.
+# Do not break line if represents a code.
+# Returns:
+# * -1 if entering codeblock
+# * 1 if closing codeblock
+# * 0 otherwise
 def check_code(line):
     if re.match("(.*)\\\\begin{cmd}(.*)", line):
         return -1
@@ -112,22 +142,26 @@ def check_code(line):
     return 0
 
 
-# If { bracket is \hint{, do not mind it.
+# If { bracket is \hint{ or \samp{ do not mind it.
+# If brackets var is above 0, then it is
+# the \hint{ or \samp{ closing bracket.
 def check_exception(line, idx, brackets):
     if line[idx-5:idx] == '\hint':
         return 1
     if line[idx-5:idx] == '\samp':
         return 1
-
     # Found a \hint or \samp closing '}' bracket.
     if brackets > 0:
         return -1
+
     return 0
 
 
-# Check indentation of a line
+# Check indentation of a line.
+# Returns the number of spaces at the beginning of a line.
 def check_indentation(line):
     idx = 0
+
     while (line[idx] == ' '):
         idx += 1
 
@@ -135,16 +169,20 @@ def check_indentation(line):
 
 
 # If line is comment, break it and insert %.
+# Returns 'True' if there is a '%' without '\' behind it.
 def is_comment(line, idx):
     return line[idx] == '%' and line[idx-1] != '\\'
 
 
-# Check if we can insert \n at current character.
+# Check if we can insert \n at current character:
+# Returns:
+# * 'True', if character 'c' is space and brackets is zero.
+# * 'False' otherwise.
 def is_insertion_possible(c, brackets):
     return c == ' ' and brackets == 0
 
 
-# DEBUG: output content(param 1) into file(param 2)
+# Output content(param 1) into file(param 2)
 def dump(content, file):
     f = open(file, 'w')
     for line in content:
@@ -152,33 +190,39 @@ def dump(content, file):
     f.close()
 
 
+# If first input is a directory
+# ask user to confirm to overwrite every .tex file.
+# Returns:
+# * 'True', if user_input is 'yes'
+# * 'False' otherwise.
+def confirm_srcdir():
+    execute = False
+
+    print('WARNING: This command will overwrite every .tex file in your directory')
+    user_input = str(raw_input('Continue? [yes/NO]: '))
+    if user_input == 'yes':
+        execute = True
+
+    return execute
+
+
 def main():
-    file_path = sys.argv[1]
+    if os.path.isdir(path):
+        execute = confirm_srcdir()
+        if not execute:
+            print('Script aborted.')
+            sys.exit(-1)
 
-    if len(sys.argv) > 3:
-        if sys.argv[3] == 'dir':
-            print('WARNING: This command will overwrite every .tex file in your directory')
-            user_input = raw_input('Continue? [yes/NO]: ')
-            execute = False
-            if str(user_input) == 'yes':
-                execute = True
-            if not execute:
-                print('Aborted.')
-                sys.exit(0)
-
-            srcdir = sys.argv[1]
-            files = find(srcdir)
-            for file in files:
-                print('Processing file: ' + file)
-                content = read_file(file)
-                newfile = format_file(content)
-                dump(newfile, file)
-                print('Formatted file: ' + file)
-            print("PROGRAM ENDS.")
+        texfiles = find_texfiles(path)
+        for file in texfiles:
+            content = read_file(file)
+            newfile = format_file(content)
+            dump(newfile, file)
     else:
-        content = read_file(file_path)
+        content = read_file(path)
         newfile = format_file(content)
         print(''.join(newfile))
+
 
 if __name__ == "__main__":
     main()

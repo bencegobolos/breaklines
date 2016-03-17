@@ -52,7 +52,6 @@ def main():
     if args.srcdir:
         command.append(str(args.srcdir))
         command.append(str(args.maxlen))
-        command.append(str('dir'))
         subprocess.call(command)
         sys.exit(0)
 
