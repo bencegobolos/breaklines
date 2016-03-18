@@ -5,13 +5,13 @@ import sys
 
 
 # Global variables: command line arguments.
-maxlen = int(sys.argv[1])
-path = sys.argv[2]
+MAXLEN = 0
+FILE_PATH = ''
 
 
 # Read file from file's path.
-def read_file(path):
-    with open(path) as f:
+def read_file(file_path):
+    with open(file_path) as f:
         content = f.readlines()
 
     return content
@@ -35,6 +35,9 @@ def format_file(content):
             formatted.extend(newline)
         else:
             formatted.extend(line)
+    # Workaround: at the end of every generated file
+    # there is an additional newline character. Remove it.
+    formatted.pop()
 
     return formatted
 
@@ -51,11 +54,10 @@ def format_file(content):
 # * num_of_indents: int, stores number of spaces at the beginning of the line
 # * indentation: string, stores num_of_indents many spaces.
 def split_line(line):
-    global maxlen
     llen = len(line)
 
-    # Early return: short line (less than maxlen)
-    if llen <= maxlen:
+    # Early return: short line (less than MAXLEN)
+    if llen <= MAXLEN:
         return line
 
     # Long line, process it.
@@ -80,8 +82,8 @@ def split_line(line):
         idx += 1
 
         # Found an insertion point after indentation and
-        # as close to maxlen as possible.
-        if save > num_of_indents and idx >= maxlen:
+        # as close to MAXLEN as possible.
+        if save > num_of_indents and idx >= MAXLEN:
             processed.extend(line[:save])
             processed.extend('\n')
             # Keep the next line indented.
@@ -149,7 +151,7 @@ def check_exception(line, idx, brackets):
 def check_indentation(line):
     idx = 0
 
-    while (line[idx] == ' '):
+    while line[idx] == ' ':
         idx += 1
 
     return idx
@@ -170,7 +172,17 @@ def is_insertion_possible(c, brackets):
 
 
 def main():
-    content = read_file(path)
+    global MAXLEN
+    global FILE_PATH
+
+    if len(sys.argv) != 3:
+        sys.stderr.write('ERROR: 2 arguments needed: MAXLEN and FILE_PATH!\n')
+        sys.exit(1)
+
+    MAXLEN = int(sys.argv[1])
+    FILE_PATH = sys.argv[2]
+
+    content = read_file(FILE_PATH)
     newfile = format_file(content)
     print(''.join(newfile))
 

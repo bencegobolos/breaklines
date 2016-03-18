@@ -16,18 +16,14 @@ def get_input():
     ap.add_argument('-m', '--maxlen',
                     help='the maximum length of a line (100 on default)',
                     type=int, default=100, metavar='LENGTH')
-    ap.add_argument('-c', '--check',
-                    help='check if file or dir contains long lines',
+    ap.add_argument('-o', '--overwrite',
+                    help='overwrites input .tex file(s)',
                     action='store_true')
     ap.add_argument('input', help='Print out a .tex file formatted '
                                   'or OVERWRITE a folder\'s .tex files.',
                     metavar='INPUT')
-    try:
-        return ap.parse_args()
 
-    except:
-        ap.print_help()
-        sys.exit(-1)
+    return ap.parse_args()
 
 
 # Check if a file contains long lines.
@@ -40,24 +36,24 @@ def file_checker(content, maxlen):
         llen = len(line)
         if llen > maxlen:
             long_found = True
-            print('***\t' + 'LONG LINE on line ' + str(line_num))
+            print('Long line at %d' % line_num)
         line_num += 1
 
     if not long_found:
-        print('[!]\t' + 'There is no long lines in your file.')
+        print('There is no long lines in your file.')
 
 
 # Checks a file's longest line.
 # Returns with the number of chars of the longest line.
 def dir_checker(content, maxlen):
-    maxllen = 0
+    max_line_len = 0
 
     for line in content:
         llen = len(line)
-        if (llen > maxllen):
-            maxllen = llen
+        if (llen > max_line_len):
+            max_line_len = llen
 
-    return maxllen
+    return max_line_len
 
 
 # Find .tex files in folder srcdir.
@@ -74,6 +70,7 @@ def find_texfiles(srcdir):
 
 
 # Read file from file's path.
+# Returns a list with the file's content.
 def read_file(path):
     with open(path) as f:
         content = f.readlines()
@@ -89,24 +86,45 @@ def dump(content, file):
     f.close()
 
 
-# If first input is a directory
-# ask user to confirm to overwrite every .tex file.
-# Returns:
-# * 'True', if user_input is 'yes'
-# * 'False' otherwise.
-def confirm_srcdir():
-    execute = False
+# Program logic when input argument is a directory.
+def exec_dir(command, args):
+    texfiles = find_texfiles(args.input)
 
-    print('WARNING: This command will overwrite every .tex file in your directory')
-    user_input = str(raw_input('Continue? [yes/NO]: '))
-    if user_input == 'yes':
-        execute = True
+    if args.overwrite:
+        for file_name in texfiles:
+            print('PROCESSING: %s' % file_name)
+            content = subprocess.check_output(command + [file_name])
+            dump(content, file_name)
+        return 0
 
-    return execute
+    for file_name in texfiles:
+        content = read_file(file_name)
+        max_line_len = dir_checker(content, args.maxlen)
+        if args.maxlen < max_line_len:
+            print("%s (%d)" % (file_name, max_line_len))
 
 
+# Program logic when input argument is a file.
+def exec_file(command, args):
+    if args.overwrite:
+        print('PROCESSING: %s' % args.input)
+        command.append(args.input)
+        content = subprocess.check_output(command)
+        dump(content, args.input)
+        return 0
+    content = read_file(args.input)
+    file_checker(content, args.maxlen)
+
+
+# Function main() contains the program logic.
+# Decides which functions should be called when
 def main():
     args = get_input()
+
+    if not os.path.exists(args.input):
+        sys.stderr.write('ERROR: \'%s\' file or directory does not exists!\n'
+                         'Use option -h for more information\n' % args.input)
+        sys.exit(1)
 
     script_path = os.path.dirname(os.path.abspath(__file__))
     command = ['python']
@@ -115,43 +133,11 @@ def main():
 
     # Input is a directory.
     if os.path.isdir(args.input):
-        texfiles = find_texfiles(args.input)
-
-        if args.check:
-            for file in texfiles:
-                content = read_file(file)
-                maxllen = dir_checker(content, args.maxlen)
-                if args.maxlen < maxllen:
-                    print(file)
-                    print("\tMax length: " + str(maxllen) + '\n')
-            sys.exit(0)
-
-        # Confirm if user wants to overwrite .tex files.
-        execute = confirm_srcdir()
-        if not execute:
-            print('Script aborted.')
-            sys.exit(-1)
-
-        for file in texfiles:
-            command.append(file)
-            content = subprocess.check_output(command)
-            command.pop()
-            dump(content, file)
-        sys.exit(0)
+        exec_dir(command, args)
+        return 0
 
     # Input is a file.
-    elif os.path.isfile(args.input):
-        if args.check:
-            content = read_file(args.input)
-            file_checker(content, args.maxlen)
-            sys.exit(0)
-        command.append(args.input)
-        subprocess.call(command)
-        sys.exit(0)
-
-    print('\nScript is made to check users-guide repository for long lines.')
-    print('Use -h or --help option to get more info.\n')
-    sys.exit(-1)
+    exec_file(command, args)
 
 
 if __name__ == "__main__":
