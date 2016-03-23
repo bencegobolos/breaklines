@@ -35,9 +35,6 @@ def format_file(content):
             formatted.extend(newline)
         else:
             formatted.extend(line)
-    # Workaround: at the end of every generated file
-    # there is an additional newline character. Remove it.
-    formatted.pop()
 
     return formatted
 
